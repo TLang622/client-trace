@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Document</title>
+</head>
+<body>
+trace test
+<script src="jquery.min.js" type="text/javascript" charset="utf-8" async defer></script>
+<script src="ajaxTrace2.js" type="text/javascript" charset="utf-8" async defer></script>
+<script>
+window.onload = function () {
+  var traceUrl = 'http://localhost:/spans';
+  window.pluginTrace.postTrace(traceUrl);
+  var url = '/';
+  var idObj = window.pluginTrace.createId(url);
+  $.ajax(url, {
+    type: 'GET',
+    dataType: 'json',
+    cache: false,
+    headers: {
+      "trace-id": idObj.traceId,
+      "span-id": idObj.spanId
+    }
+  }).done((data, textStatus, request) => {
+    
+  });
+};
+</script>
+</body>
+</html>
