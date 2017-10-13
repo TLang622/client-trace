@@ -64,50 +64,32 @@
     return endUrl;
   }
 
-  function tracer(url, timeStamp, pathname, urlMethod) {
-    var key = dealUrl(url);
+  function tracer(params) {
+    var key = dealUrl(params.api);
     var traceId = sessionStorage.getItem(key);
     var dateKey = key + 'time';
     var startTime = sessionStorage.getItem(dateKey);
     var startTimeStr = sessionStorage.getItem(dateKey) + '000';
-    var endTime = parseInt(startTime) + parseInt(timeStamp);
+    var endTime = parseInt(startTime) + parseInt(params.timeStamp);
     var endTimeStr = endTime + '000';
-    var timeStampStr = timeStamp + '000';
+    var timeStampStr = params.timeStamp + '000';
     var spanKey = key + 'span';
     var spanId = sessionStorage.getItem(spanKey);
-    key = key + ' (' + urlMethod + ')';
+    var api = params.api.split('?');
+    api = api[0];
+    var bakey = ['http.host', 'http.location', 'http.api', 'http.path', 'http.method'];
+    var bavalue = [params.host, params.location, api, key, params.method];
     var traceData = {
       "traceId": traceId,
       "name": key,
       "timestamp": startTimeStr,
-      "binaryAnnotations": [{
-          "endpoint": {
-              "serviceName": key,
-              "ipv4": "127.0.0.1",
-              "port": "8080"
-          },
-          "value": key,
-          "key": pathname
-      }],
-      "annotations": [{
-          "timestamp": startTimeStr,
-          "endpoint": {
-              "serviceName": key,
-              "ipv4": "127.0.0.1",
-              "port": "8080"
-          },
-          "value": "cs"
-      }, {
-          "timestamp": endTimeStr,
-          "endpoint": {
-              "serviceName": key,
-              "ipv4": "127.0.0.1",
-              "port": "8080"
-          },
-          "value": "cr"
-      }],
+      "serviceName": key,
+      "bavalue": bavalue,
+      "bakey": bakey,
+      "astarttimestamp": startTimeStr,
+      "aendtimestamp": endTimeStr,
       "duration": timeStampStr,
-      "id": spanId
+      "spanId": spanId
     };
     return traceData;
   }
@@ -118,11 +100,13 @@
 
       window.addEventListener('ajaxLoadEnd', function (e) {
         //console.log(e);
-        var pathname = e.target.location.pathname;
-        var url = e.detail._url;
-        var urlMethod = e.detail._method;
-        var timeStamp = parseInt(e.timeStamp);
-        var data = tracer(url, timeStamp, pathname, urlMethod);
+        var params = {};
+        params.host = e.target.location.host;
+        params.location = e.target.location.pathname;
+        params.api = e.detail._url;
+        params.method = e.detail._method;
+        params.timeStamp = parseInt(e.timeStamp);
+        var data = tracer(params);
         var xmlHttp=new XMLHttpRequest({tag:'trace'});
         var method="POST";
         xmlHttp.open(method,traceUrl, true);
