@@ -16,12 +16,14 @@
       window.dispatchEvent(ajaxEvent);
      }
 
-    var xhrProto = XMLHttpRequest.prototype,
-        origOpen = xhrProto.open;
+    var xhrProto = XMLHttpRequest.prototype;
+    var origOpen = xhrProto.open;
+    var urlRecord;
 
     xhrProto.open = function (method, url) {
         this._url = url;
         this._method = method;
+        urlRecord = url;
         return origOpen.apply(this, arguments);
     };
 
@@ -40,7 +42,28 @@
       realXHR.addEventListener('timeout', function () { ajaxEventTrigger.call(this, 'ajaxTimeout'); }, false);
       realXHR.addEventListener('loadend', function () { ajaxEventTrigger.call(this, 'ajaxLoadEnd'); }, false);
       realXHR.addEventListener('readystatechange', function() { ajaxEventTrigger.call(this, 'ajaxReadyStateChange'); }, false);
-      return realXHR;
+
+      realXHR.onreadystatechange = function (evt) {
+        switch(realXHR.readyState){
+          case 1://OPENED
+            var idObj = window.pluginTrace.createId(urlRecord);
+            realXHR.setRequestHeader('id', idObj.id);
+            realXHR.setRequestHeader('trace-id', idObj.traceId);
+            realXHR.setRequestHeader('span-id', idObj.spanId);
+            break;
+          case 2://HEADERS_RECEIVED
+            //do something
+            break;
+          case 3://LOADING
+            //do something
+            break;
+          case 4://DONE
+            //do something
+            break;
+        }
+      };
+
+      return realXHR;
     }
 
     window.XMLHttpRequest = newXHR;
@@ -77,27 +100,36 @@
     var spanId = sessionStorage.getItem(spanKey);
     var api = params.api.split('?');
     api = api[0];
-    var bakey = ['http.host', 'http.location', 'http.api', 'http.path', 'http.method'];
-    var bavalue = [params.host, params.location, api, key, params.method];
+    var binaryAnnotations = [
+      {'key': 'http.host', 'value': params.host},
+      {'key': 'http.location', 'value': params.location},
+      {'key': 'http.api', 'value': api},
+      {'key': 'http.path', 'value': key},
+      {'key': 'http.method', 'value': params.method},
+    ];
     var traceData = {
       "traceId": traceId,
       "name": key,
       "timestamp": startTimeStr,
       "serviceName": key,
-      "bavalue": bavalue,
-      "bakey": bakey,
-      "astarttimestamp": startTimeStr,
-      "aendtimestamp": endTimeStr,
+      "binaryAnnotations":binaryAnnotations,
+      "astartTimestamp": startTimeStr,
+      "aendTimestamp": endTimeStr,
       "duration": timeStampStr,
-      "spanId": spanId
+      "spanId": spanId,
+      "id": params.id
     };
     return traceData;
+  }
+
+  var id = '';
+  for (var i = 0; i < 16; i++) {
+    id += Math.floor(Math.random()*10);
   }
 
   var api = {
     postTrace: function postTrace(traceUrl) {
       ajaxOverride();
-
       window.addEventListener('ajaxLoadEnd', function (e) {
         //console.log(e);
         var params = {};
@@ -106,6 +138,7 @@
         params.api = e.detail._url;
         params.method = e.detail._method;
         params.timeStamp = parseInt(e.timeStamp);
+        params.id = id;
         var data = tracer(params);
         var xmlHttp=new XMLHttpRequest({tag:'trace'});
         var method="POST";
@@ -135,6 +168,7 @@
       var spanKey = key + 'span';
       sessionStorage.setItem(spanKey, spanId);
       return {
+        id: id,
         traceId: traceId,
         spanId: spanId
       };
