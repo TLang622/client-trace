@@ -128,7 +128,7 @@
   }
 
   var api = {
-    postTrace: function postTrace(traceUrl) {
+    init: function postTrace(traceUrl) {
       ajaxOverride();
       window.addEventListener('ajaxLoadEnd', function (e) {
         //console.log(e);
